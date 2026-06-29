@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Inquiry {
+  id          String        @id @default(cuid())
+  messageId   String        @unique
+  fromEmail   String
+  fromName    String?
+  subject     String
+  bodyText    String
+  bodyHtml    String?
+  receivedAt  DateTime
+  status      InquiryStatus @default(PENDING)
+  urgency     String?
+  ambiguities Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  agentRun  AgentRun?
+  quote     Quote?
+  followUps FollowUp[]
+}
+
+model AgentRun {
+  id             String     @id @default(cuid())
+  inquiryId      String     @unique
+  inquiry        Inquiry    @relation(fields: [inquiryId], references: [id])
+  status         RunStatus  @default(RUNNING)
+  currentStep    Int        @default(0)
+  escalated      Boolean    @default(false)
+  escalateReason String?
+  confidence     Float?
+  startedAt      DateTime   @default(now())
+  completedAt    DateTime?
+
+  steps StepTrace[]
+}
+
+model StepTrace {
+  id               String   @id @default(cuid())
+  agentRunId       String
+  agentRun         AgentRun @relation(fields: [agentRunId], references: [id])
+  stepNumber       Int
+  stepName         String
+  model            String
+  promptTokens     Int?
+  completionTokens Int?
+  inputJson        Json
+  outputJson       Json
+  durationMs       Int
+  createdAt        DateTime @default(now())
+}
+
+model Quote {
+  id         String      @id @default(cuid())
+  inquiryId  String      @unique
+  inquiry    Inquiry     @relation(fields: [inquiryId], references: [id])
+  lineItems  Json
+  subtotal   Decimal     @db.Decimal(12, 2)
+  tax        Decimal     @db.Decimal(12, 2)
+  total      Decimal     @db.Decimal(12, 2)
+  currency   String      @default("USD")
+  validUntil DateTime
+  pdfPath    String?
+  coverEmail String?
+  status     QuoteStatus @default(DRAFT)
+  approvedBy String?
+  approvedAt DateTime?
+  sentAt     DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model FollowUp {
+  id          String         @id @default(cuid())
+  inquiryId   String
+  inquiry     Inquiry        @relation(fields: [inquiryId], references: [id])
+  sequenceNum Int
+  scheduledAt DateTime
+  sentAt      DateTime?
+  status      FollowUpStatus @default(SCHEDULED)
+  createdAt   DateTime       @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  inquiryId String?
+  eventType String
+  payload   Json?
+  createdAt DateTime @default(now())
+}
+
+enum InquiryStatus {
+  PENDING
+  PROCESSING
+  AWAITING_APPROVAL
+  APPROVED
+  SENT
+  FAILED
+  ESCALATED
+}
+
+enum RunStatus {
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum QuoteStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  SENT
+}
+
+enum FollowUpStatus {
+  SCHEDULED
+  SENT
+  CANCELLED
+}
