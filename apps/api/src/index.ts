@@ -7,6 +7,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { inquiryRoutes } from './routes/inquiries.js';
 import { quoteRoutes } from './routes/quotes.js';
 import { activityRoutes } from './routes/activity.js';
+import { demoRoutes } from './routes/demo.js';
 import { registerClient } from './ws/broadcaster.js';
 import { startInquiryWorker } from './workers/inquiry.worker.js';
 import { startFollowupWorker } from './workers/followup.worker.js';
@@ -32,6 +33,7 @@ await app.register(webhookRoutes);
 await app.register(inquiryRoutes);
 await app.register(quoteRoutes);
 await app.register(activityRoutes);
+await app.register(demoRoutes);
 
 app.get('/health', async () => ({ ok: true, ts: Date.now() }));
 

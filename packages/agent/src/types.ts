@@ -68,6 +68,25 @@ export interface WriteEmailResult {
   tone: string;
 }
 
+export type StepStatus = 'running' | 'complete' | 'escalated' | 'failed';
+
+export interface AgentStepEvent {
+  inquiryId: string;
+  stepNumber: number;
+  stepName: string;
+  status: StepStatus;
+  model: string;
+  durationMs?: number;
+  /** Lightweight summary safe to push to UI — never full prompt text */
+  summary?: string;
+  confidence?: number;
+  toolsCalled?: string[];
+}
+
+export interface AgentOptions {
+  onStep?: (event: AgentStepEvent) => void;
+}
+
 export interface AgentOutput {
   inquiryId: string;
   escalated: boolean;

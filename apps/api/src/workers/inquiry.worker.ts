@@ -6,32 +6,38 @@ import { broadcast } from '../ws/broadcaster.js';
 import { renderQuotePdf } from '../pdf/renderer.js';
 import { sendEmail } from '../email/sender.js';
 import { config } from '../config.js';
+import type { AgentStepEvent } from '@inbox-pilot/agent';
 
 export function startInquiryWorker() {
   const worker = new Worker(
     'inquiry',
     async (job) => {
       const { inquiryId } = job.data as { inquiryId: string };
-
       const inquiry = await prisma.inquiry.findUniqueOrThrow({ where: { id: inquiryId } });
 
-      // Mark as processing
       await prisma.inquiry.update({ where: { id: inquiryId }, data: { status: 'PROCESSING' } });
-      broadcast({ type: 'INQUIRY_PROCESSING', payload: { id: inquiryId } });
+      broadcast({ type: 'INQUIRY_PROCESSING', payload: { id: inquiryId, fromEmail: inquiry.fromEmail, subject: inquiry.subject } });
 
-      // Create agent run record
       const agentRun = await prisma.agentRun.create({ data: { inquiryId } });
 
-      try {
-        const output = await runAgentChain({
-          inquiryId,
-          fromEmail: inquiry.fromEmail,
-          fromName: inquiry.fromName ?? undefined,
-          subject: inquiry.subject,
-          bodyText: inquiry.bodyText,
-        });
+      // Broadcast each step the moment it starts/completes — this is what drives the live UI
+      const onStep = (event: AgentStepEvent) => {
+        broadcast({ type: 'AGENT_STEP', payload: event });
+      };
 
-        // Persist step traces
+      try {
+        const output = await runAgentChain(
+          {
+            inquiryId,
+            fromEmail: inquiry.fromEmail,
+            fromName: inquiry.fromName ?? undefined,
+            subject: inquiry.subject,
+            bodyText: inquiry.bodyText,
+          },
+          { onStep },
+        );
+
+        // Persist full step traces to DB for the reasoning trace viewer
         for (const trace of output.traces) {
           await prisma.stepTrace.create({
             data: {
@@ -63,18 +69,24 @@ export function startInquiryWorker() {
         if (output.escalated) {
           await prisma.inquiry.update({ where: { id: inquiryId }, data: { status: 'AWAITING_APPROVAL' } });
           await prisma.activityLog.create({ data: { inquiryId, eventType: 'AWAITING_APPROVAL', payload: { reason: output.escalateReason } } });
-          broadcast({ type: 'INQUIRY_ESCALATED', payload: { id: inquiryId, reason: output.escalateReason } });
+          broadcast({ type: 'INQUIRY_ESCALATED', payload: { id: inquiryId, reason: output.escalateReason, confidence: output.confidence } });
           return;
         }
 
         // Generate PDF
         const quote = await prisma.quote.findUnique({ where: { inquiryId } });
-        if (quote) {
-          const pdfPath = await renderQuotePdf(quote, inquiry, output.draftQuote!);
-          await prisma.quote.update({ where: { id: quote.id }, data: { pdfPath, coverEmail: output.email?.body } });
+        if (quote && output.draftQuote) {
+          try {
+            const pdfPath = await renderQuotePdf(quote, inquiry, output.draftQuote);
+            await prisma.quote.update({ where: { id: quote.id }, data: { pdfPath, coverEmail: output.email?.body } });
+            broadcast({ type: 'QUOTE_PDF_READY', payload: { inquiryId, quoteId: quote.id } });
+          } catch (pdfErr) {
+            console.error('[pdf] render failed:', pdfErr);
+            // Non-fatal — proceed without PDF
+          }
         }
 
-        // Auto-send
+        // Auto-send the quote
         if (output.email && output.draftQuote) {
           await sendEmail({
             to: inquiry.fromEmail,
@@ -84,9 +96,20 @@ export function startInquiryWorker() {
           });
 
           await prisma.inquiry.update({ where: { id: inquiryId }, data: { status: 'SENT' } });
-          if (quote) await prisma.quote.update({ where: { id: quote.id }, data: { status: 'SENT', sentAt: new Date() } });
-          await prisma.activityLog.create({ data: { inquiryId, eventType: 'QUOTE_SENT', payload: { to: inquiry.fromEmail } } });
-          broadcast({ type: 'QUOTE_SENT', payload: { id: inquiryId } });
+          if (quote) {
+            await prisma.quote.update({ where: { id: quote.id }, data: { status: 'SENT', sentAt: new Date() } });
+          }
+          await prisma.activityLog.create({ data: { inquiryId, eventType: 'QUOTE_SENT', payload: { to: inquiry.fromEmail, total: output.draftQuote.total } } });
+          broadcast({
+            type: 'QUOTE_SENT',
+            payload: {
+              id: inquiryId,
+              quoteId: quote?.id,
+              total: output.draftQuote.total,
+              currency: output.draftQuote.currency,
+              to: inquiry.fromEmail,
+            },
+          });
 
           // Schedule follow-up
           await followupQueue.add(
@@ -106,10 +129,7 @@ export function startInquiryWorker() {
     { connection: redisConnection, concurrency: 5 },
   );
 
-  worker.on('failed', (job, err) => {
-    console.error('[inquiry-worker] Job failed:', job?.id, err.message);
-  });
-
+  worker.on('failed', (job, err) => console.error('[inquiry-worker] Job failed:', job?.id, err.message));
   console.log('[inquiry-worker] Started');
   return worker;
 }
