@@ -6,16 +6,18 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "concurrently --names \"MCP,API,WEB\" --prefix-colors \"cyan,yellow,blue\" \"npm run dev --workspace=packages/mcp\" \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/web\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "db:generate": "turbo run db:generate",
-    "db:migrate": "turbo run db:migrate",
+    "db:migrate": "npm run db:migrate --workspace=packages/db",
+    "db:push": "npm run db:push --workspace=packages/db",
     "db:studio": "cd packages/db && npx prisma studio"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^10.0.3",
     "turbo": "^2.0.0",
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^5.4.0"
   }
 }

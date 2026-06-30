@@ -6,7 +6,7 @@ import type { DraftQuoteResult } from '@inbox-pilot/agent';
 function quoteHtml(quote: Quote, inquiry: Inquiry, draft: DraftQuoteResult): string {
   const items = (draft.lineItems ?? [])
     .map(
-      (li) => `<tr>
+      (li: { sku: string; description: string; qty: number; unitPrice: number; total: number }) => `<tr>
         <td>${li.sku}</td>
         <td>${li.description}</td>
         <td style="text-align:center">${li.qty}</td>

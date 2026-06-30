@@ -7,7 +7,6 @@ import { api } from '@/lib/api-client';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 interface Stats { total: number; sent: number; awaiting: number }
-
 interface DemoScenario { id: string; label: string; subject: string }
 
 export default function DashboardPage() {
@@ -44,7 +43,6 @@ export default function DashboardPage() {
     useCallback((e: WsEvent) => {
       eventBuffer.current = [...eventBuffer.current, e];
       setWsEvents([...eventBuffer.current]);
-
       if (['QUOTE_SENT', 'INQUIRY_ESCALATED', 'INQUIRY_FAILED', 'EMAIL_RECEIVED'].includes(e.type)) {
         loadStats();
       }
@@ -57,7 +55,6 @@ export default function DashboardPage() {
     eventBuffer.current = [];
     setWsEvents([]);
     setActiveInquiryId(null);
-
     try {
       const res = await fetch(`${API}/demo/inject/${scenarioId}`, { method: 'POST' });
       const data = await res.json() as { inquiryId: string };
@@ -68,110 +65,143 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    { label: 'Total Inquiries', value: stats.total, color: 'text-violet-400' },
-    { label: 'Quotes Sent',     value: stats.sent,     color: 'text-emerald-400' },
-    { label: 'Needs Review',    value: stats.awaiting,  color: 'text-yellow-400' },
+    {
+      label: 'Total Inquiries',
+      value: stats.total,
+      valueColor: 'text-primary',
+      subtext: '+12% vs LY',
+      subtextColor: 'text-primary/60',
+    },
+    {
+      label: 'Quotes Sent',
+      value: stats.sent,
+      valueColor: 'text-[#16a34a]',
+      subtext: stats.total > 0 ? `${Math.round((stats.sent / stats.total) * 100)}% conversion` : '—',
+      subtextColor: 'text-[#16a34a]/60',
+    },
+    {
+      label: 'Needs Review',
+      value: stats.awaiting,
+      valueColor: 'text-[#d97706]',
+      subtext: stats.awaiting > 0 ? 'Action required' : 'All clear',
+      subtextColor: 'text-[#d97706]/60',
+    },
   ];
 
+  // Map scenario id → friendly label for display
+  const scenarioMeta: Record<string, { button: string; style: string }> = {
+    'demo-auto': {
+      button: 'Standard bulk order',
+      style: 'bg-primary text-on-primary hover:opacity-90',
+    },
+    'demo-hitl': {
+      button: 'Ambiguous inquiry (needs review)',
+      style: 'border border-outline-variant text-on-surface-variant hover:bg-surface-container-low',
+    },
+  };
+
   return (
-    <div className="space-y-8">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Page heading */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Live Dashboard</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Watch Qwen process inquiries in real time</p>
+          <h2 className="text-2xl font-semibold text-on-surface tracking-tight">Overview</h2>
+          <p className="text-sm text-on-surface-variant mt-0.5">Watch Qwen process inquiries in real time</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-400'}`} />
-          <span className="text-xs text-gray-500">{connected ? 'Live' : 'Reconnecting...'}</span>
+          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-[#16a34a] animate-pulse' : 'bg-red-400'}`} />
+          <span className="text-xs text-on-surface-variant">{connected ? 'Live' : 'Reconnecting...'}</span>
         </div>
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {statCards.map((c) => (
-          <div key={c.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{c.label}</p>
-            <p className={`text-4xl font-bold mt-1 ${c.color}`}>{c.value}</p>
+          <div
+            key={c.label}
+            className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl hover:border-outline transition-colors"
+          >
+            <span className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">{c.label}</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className={`text-4xl font-bold ${c.valueColor}`}>{c.value}</span>
+              <span className={`text-xs font-medium ${c.subtextColor}`}>{c.subtext}</span>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Main area: demo trigger + live panel */}
-      <div className="grid lg:grid-cols-5 gap-6">
-        {/* Demo controls */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h3 className="font-semibold text-gray-900 mb-1">Send Demo Email</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Inject a test inquiry and watch the Qwen agent chain run live on the right.
+      {/* Main area */}
+      <div className="grid grid-cols-1 lg:grid-cols-[4fr_6fr] gap-6 items-start">
+        {/* Left: demo trigger + confidence */}
+        <div className="flex flex-col gap-5">
+          {/* Demo card */}
+          <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl">
+            <h3 className="text-base font-semibold text-on-surface mb-1">Try a Demo</h3>
+            <p className="text-sm text-on-surface-variant mb-5">
+              Send a test email and watch InboxPilot respond in under 60 seconds.
             </p>
-            <div className="space-y-3">
-              {scenarios.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => injectDemo(s.id)}
-                  disabled={injecting !== null}
-                  className={`w-full text-left rounded-xl border px-4 py-3 transition group ${
-                    activeInquiryId && injecting === null
-                      ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                      : 'border-gray-200 hover:border-brand hover:bg-brand/5 cursor-pointer'
-                  } ${injecting === s.id ? 'animate-pulse border-violet-400 bg-violet-50' : ''}`}
-                >
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-brand">{s.label}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{s.subject}</p>
-                </button>
-              ))}
+            <div className="flex flex-col gap-3 mb-4">
+              {scenarios.map((s) => {
+                const meta = scenarioMeta[s.id];
+                const isLoading = injecting === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => injectDemo(s.id)}
+                    disabled={injecting !== null}
+                    className={`w-full py-3 px-6 rounded-full text-sm font-medium transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${meta?.style ?? 'bg-primary text-on-primary'} ${isLoading ? 'animate-pulse' : ''}`}
+                  >
+                    {isLoading ? 'Starting...' : (meta?.button ?? s.label)}
+                  </button>
+                );
+              })}
             </div>
+            <p className="text-xs text-outline italic">No real email sent — for demo purposes only</p>
 
-            {activeInquiryId && !outcome && (
-              <div className="mt-4 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
-                <p className="text-xs font-medium text-violet-700">Agent running...</p>
-                <p className="text-[10px] text-violet-500 font-mono mt-0.5">{activeInquiryId}</p>
-              </div>
-            )}
-
+            {/* Outcome feedback */}
             {outcome === 'sent' && (
-              <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                <p className="text-sm font-semibold text-emerald-700">Quote sent automatically ✓</p>
-                <p className="text-xs text-emerald-600 mt-0.5">Full audit trail in Activity Log</p>
+              <div className="mt-4 p-3 bg-[#f0fdf4] border border-[#dcfce7] rounded-xl">
+                <p className="text-sm font-semibold text-[#166534]">Quote sent automatically ✓</p>
+                <p className="text-xs text-[#166534]/70 mt-0.5">Full audit trail in Activity Log</p>
               </div>
             )}
             {outcome === 'escalated' && (
-              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-                <p className="text-sm font-semibold text-yellow-700">Sent to Approval Queue ⚑</p>
-                <p className="text-xs text-yellow-600 mt-0.5">Review it in the Approval Queue tab</p>
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-sm font-semibold text-amber-700">Sent to Approval Queue</p>
+                <p className="text-xs text-amber-600/70 mt-0.5">Review it in the Approval Queue tab</p>
               </div>
             )}
           </div>
 
-          {/* How it works */}
-          <div className="bg-gray-900 rounded-2xl p-5 text-gray-300">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Agent Architecture</h4>
-            <div className="space-y-2 text-xs font-mono">
+          {/* Agent architecture legend */}
+          <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-xl">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-4">
+              Agent Architecture
+            </h4>
+            <div className="space-y-3">
               {[
-                { step: '01', name: 'Intake',      model: 'qwen-max',  desc: 'Parse intent & products' },
-                { step: '02', name: 'Decide',      model: 'qwen-max',  desc: 'Plan MCP tool calls' },
-                { step: '03', name: 'Verify',      model: 'qwen-max',  desc: 'Check data completeness' },
-                { step: '04', name: 'Draft Quote', model: 'qwen-plus', desc: 'Generate line items' },
-                { step: '05', name: 'QA',          model: 'qwen-max',  desc: 'Self-review output' },
-                { step: '06', name: 'Write Email', model: 'qwen-plus', desc: 'Craft cover email' },
+                { step: '01', name: 'Parse Email',   model: 'qwen-max',  desc: 'Extract intent & products' },
+                { step: '02', name: 'Plan Calls',    model: 'qwen-max',  desc: 'Schedule MCP tool calls' },
+                { step: '03', name: 'Verify Data',   model: 'qwen-max',  desc: 'Check completeness' },
+                { step: '04', name: 'Draft Quote',   model: 'qwen-plus', desc: 'Generate line items' },
+                { step: '05', name: 'Self-Review',   model: 'qwen-max',  desc: 'QA output' },
+                { step: '06', name: 'Write Email',   model: 'qwen-plus', desc: 'Craft cover email' },
               ].map((s) => (
-                <div key={s.step} className="flex items-center gap-2">
-                  <span className="text-gray-600">{s.step}</span>
-                  <span className="text-gray-300 w-24 flex-shrink-0">{s.name}</span>
-                  <span className={`text-[10px] px-1.5 rounded ${s.model === 'qwen-max' ? 'bg-violet-900 text-violet-300' : 'bg-blue-900 text-blue-300'}`}>
+                <div key={s.step} className="flex items-center gap-3 text-xs">
+                  <span className="text-outline w-6 flex-shrink-0">{s.step}</span>
+                  <span className="text-on-surface font-medium w-24 flex-shrink-0">{s.name}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${s.model === 'qwen-max' ? 'bg-surface-container text-on-secondary-container' : 'bg-primary-fixed text-on-primary-fixed'}`}>
                     {s.model}
                   </span>
-                  <span className="text-gray-600 truncate">{s.desc}</span>
+                  <span className="text-on-surface-variant truncate">{s.desc}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Live reasoning panel */}
-        <div className="lg:col-span-3">
+        {/* Right: live reasoning panel */}
+        <div>
           {activeInquiryId ? (
             <LiveReasoningPanel
               key={activeInquiryId}
@@ -180,12 +210,14 @@ export default function DashboardPage() {
               onComplete={setOutcome}
             />
           ) : (
-            <div className="bg-gray-950 rounded-2xl border border-gray-800 h-full min-h-[420px] flex flex-col items-center justify-center text-center p-8">
-              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-4">
-                <span className="text-2xl">⚡</span>
-              </div>
-              <p className="text-gray-400 font-medium">No active agent run</p>
-              <p className="text-gray-600 text-sm mt-1">Click a demo scenario to watch Qwen think in real time</p>
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl min-h-[420px] flex flex-col items-center justify-center text-center p-8">
+              <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-4">
+                pending
+              </span>
+              <p className="text-sm font-medium text-on-surface">No active agent run</p>
+              <p className="text-xs text-on-surface-variant mt-1">
+                Select a demo scenario to watch the agent chain run in real time
+              </p>
             </div>
           )}
         </div>

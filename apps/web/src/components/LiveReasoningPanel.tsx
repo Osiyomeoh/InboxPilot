@@ -21,52 +21,70 @@ interface Props {
 }
 
 const STEP_LABELS: Record<string, string> = {
-  'intake':       'Parse Email',
-  'decide':       'Plan Tool Calls',
-  'tool-call':    'Invoke MCP Tool',
-  'verify':       'Verify Data',
-  'draft-quote':  'Draft Quote',
-  'qa':           'Self-Review (QA)',
-  'write-email':  'Write Cover Email',
+  intake: 'Parse Email',
+  decide: 'Plan Tool Calls',
+  'tool-call': 'Invoke MCP Tool',
+  verify: 'Verify Data',
+  'draft-quote': 'Draft Quote',
+  qa: 'Self-Review (QA)',
+  'write-email': 'Write Cover Email',
 };
 
-const MODEL_BADGE: Record<string, string> = {
-  'qwen-max':  'bg-violet-900/60 text-violet-300 border-violet-700',
-  'qwen-plus': 'bg-blue-900/60 text-blue-300 border-blue-700',
-  'mcp':       'bg-emerald-900/60 text-emerald-300 border-emerald-700',
-};
-
-function StatusIcon({ status }: { status: LiveStep['status'] }) {
+function StepIcon({ status }: { status: LiveStep['status'] }) {
   if (status === 'running') {
     return (
-      <span className="flex h-5 w-5 items-center justify-center">
-        <span className="animate-spin h-4 w-4 border-2 border-violet-400 border-t-transparent rounded-full" />
-      </span>
+      <div className="w-6 h-6 rounded-full border-2 border-primary bg-white flex items-center justify-center">
+        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+      </div>
     );
   }
-  if (status === 'complete') return <span className="text-emerald-400 text-lg leading-none">✓</span>;
-  if (status === 'escalated') return <span className="text-yellow-400 text-lg leading-none">⚑</span>;
-  return <span className="text-red-400 text-lg leading-none">✕</span>;
-}
-
-function ConfidenceMeter({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
-  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-yellow-500' : 'bg-red-500';
-  return (
-    <div className="flex items-center gap-2 mt-3">
-      <span className="text-xs text-gray-500">Confidence</span>
-      <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${color}`}
-          style={{ width: `${pct}%` }}
-        />
+  if (status === 'complete') {
+    return (
+      <div className="w-6 h-6 rounded-full bg-[#16a34a] flex items-center justify-center">
+        <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'FILL' 1", fontSize: 14 }}>
+          check
+        </span>
       </div>
-      <span className={`text-xs font-bold ${pct >= 80 ? 'text-emerald-400' : pct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
-        {pct}%
+    );
+  }
+  if (status === 'escalated') {
+    return (
+      <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+        <span className="material-symbols-outlined text-white text-sm" style={{ fontSize: 14 }}>
+          flag
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+      <span className="material-symbols-outlined text-white text-sm" style={{ fontSize: 14 }}>
+        close
       </span>
     </div>
   );
 }
+
+function PendingIcon() {
+  return (
+    <div className="w-6 h-6 rounded-full border-2 border-outline-variant bg-surface" />
+  );
+}
+
+function ModelBadge({ model }: { model: string }) {
+  const styles: Record<string, string> = {
+    'qwen-max': 'bg-surface-container text-on-secondary-container',
+    'qwen-plus': 'bg-primary-fixed text-on-primary-fixed',
+    mcp: 'bg-[#dcfce7] text-[#166534]',
+  };
+  return (
+    <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${styles[model] ?? 'bg-surface-container text-on-surface-variant'}`}>
+      {model}
+    </span>
+  );
+}
+
+const ORDERED_STEPS = ['intake', 'decide', 'verify', 'draft-quote', 'qa', 'write-email'];
 
 export function LiveReasoningPanel({ inquiryId, events, onComplete }: Props) {
   const [steps, setSteps] = useState<LiveStep[]>([]);
@@ -91,16 +109,12 @@ export function LiveReasoningPanel({ inquiryId, events, onComplete }: Props) {
         if (payload.inquiryId !== inquiryId) continue;
 
         setSteps((prev) => {
-          // Tool-call sub-steps: append rather than replace
           const isSub = payload.stepName === 'tool-call';
-          const key = isSub ? `tool-${payload.summary}-${payload.status}` : `${payload.stepNumber}-${payload.stepName}`;
-
-          const existing = isSub ? -1 : prev.findIndex(
-            (s) => s.stepNumber === payload.stepNumber && s.stepName === payload.stepName,
-          );
+          const existing = isSub
+            ? -1
+            : prev.findIndex((s) => s.stepNumber === payload.stepNumber && s.stepName === payload.stepName);
 
           const next: LiveStep = { ...payload, ts: Date.now() };
-
           if (existing >= 0) {
             const updated = [...prev];
             updated[existing] = next;
@@ -112,7 +126,7 @@ export function LiveReasoningPanel({ inquiryId, events, onComplete }: Props) {
 
       if (e.type === 'QUOTE_SENT' && (e.payload as { id: string }).id === inquiryId) {
         const p = e.payload as { total?: number; currency?: string };
-        if (p.total) setQuoteTotal(`$${Number(p.total).toFixed(2)} ${p.currency ?? 'USD'}`);
+        if (p.total) setQuoteTotal(`$${Number(p.total).toFixed(2)}`);
         setOutcome('sent');
         onComplete?.('sent');
       }
@@ -131,102 +145,163 @@ export function LiveReasoningPanel({ inquiryId, events, onComplete }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [steps]);
 
+  const stepMap = new Map(steps.filter((s) => s.stepName !== 'tool-call').map((s) => [s.stepName, s]));
+  const toolSteps = steps.filter((s) => s.stepName === 'tool-call');
   const latestConfidence = [...steps].reverse().find((s) => s.confidence != null)?.confidence;
 
+  const isProcessing = steps.length > 0 && !outcome;
+  const headerLabel = outcome === 'sent'
+    ? 'Quote sent'
+    : outcome === 'escalated'
+    ? 'Sent to review'
+    : outcome === 'failed'
+    ? 'Processing failed'
+    : isProcessing
+    ? 'Processing inquiry...'
+    : 'Waiting to start...';
+
   return (
-    <div className="bg-gray-950 rounded-2xl border border-gray-800 overflow-hidden flex flex-col h-full min-h-[420px]">
+    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl flex flex-col h-full min-h-[420px]">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800 bg-gray-900">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-sm font-semibold text-gray-200 font-mono">qwen-agent</span>
-          <span className="text-xs text-gray-500 font-mono truncate max-w-[160px]">{inquiryId.slice(-12)}</span>
+      <div className="px-6 py-4 border-b border-outline-variant flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {isProcessing ? (
+            <span className="material-symbols-outlined text-primary spinner-rotate">autorenew</span>
+          ) : outcome === 'sent' ? (
+            <span className="material-symbols-outlined text-[#16a34a]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+          ) : outcome === 'escalated' ? (
+            <span className="material-symbols-outlined text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>flag</span>
+          ) : (
+            <span className="material-symbols-outlined text-on-surface-variant">pending</span>
+          )}
+          <h3 className="text-base font-semibold text-on-surface">{headerLabel}</h3>
         </div>
-        {outcome && (
-          <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-            outcome === 'sent'      ? 'bg-emerald-900/60 text-emerald-300 border-emerald-700' :
-            outcome === 'escalated' ? 'bg-yellow-900/60 text-yellow-300 border-yellow-700' :
-                                      'bg-red-900/60 text-red-300 border-red-700'
-          }`}>
-            {outcome === 'sent' ? '✓ Sent' : outcome === 'escalated' ? '⚑ Needs Review' : '✕ Failed'}
-          </span>
-        )}
+        <span className="text-xs px-2 py-1 bg-surface-container-high rounded-lg text-on-surface-variant">
+          Real-time trace
+        </span>
       </div>
 
-      {/* Step stream */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 font-mono text-sm">
+      {/* Step timeline */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
         {steps.length === 0 && (
-          <p className="text-gray-600 text-xs pt-4">Waiting for agent to start...</p>
+          <p className="text-sm text-on-surface-variant text-center py-8">
+            Select a demo scenario to start the agent...
+          </p>
         )}
 
-        {steps.map((step, i) => (
-          <div
-            key={`${step.stepNumber}-${step.stepName}-${i}`}
-            className={`flex gap-3 items-start transition-all duration-300 ${
-              step.status === 'running' ? 'opacity-100' : 'opacity-90'
-            }`}
-          >
-            <div className="mt-0.5 w-5 flex-shrink-0 flex justify-center">
-              <StatusIcon status={step.status} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-xs font-semibold ${
-                  step.status === 'running'   ? 'text-violet-300' :
-                  step.status === 'complete'  ? 'text-emerald-300' :
-                  step.status === 'escalated' ? 'text-yellow-300' : 'text-red-300'
-                }`}>
-                  {STEP_LABELS[step.stepName] ?? step.stepName}
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${MODEL_BADGE[step.model] ?? 'bg-gray-800 text-gray-400 border-gray-700'}`}>
-                  {step.model}
-                </span>
-                {step.durationMs != null && (
-                  <span className="text-[10px] text-gray-600">{step.durationMs}ms</span>
-                )}
-              </div>
-              {step.summary && (
-                <p className={`text-xs mt-0.5 ${
-                  step.status === 'running' ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  {step.summary}
-                </p>
-              )}
-              {step.toolsCalled && step.toolsCalled.length > 0 && (
-                <div className="flex gap-1 mt-1 flex-wrap">
-                  {step.toolsCalled.map((t) => (
-                    <span key={t} className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded font-mono">
-                      {t}()
-                    </span>
-                  ))}
+        <div className="relative flex flex-col gap-5">
+          {/* Vertical connecting line */}
+          {ORDERED_STEPS.length > 0 && (
+            <div className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-outline-variant" />
+          )}
+
+          {ORDERED_STEPS.map((stepKey) => {
+            const step = stepMap.get(stepKey);
+            const label = STEP_LABELS[stepKey] ?? stepKey;
+            const isPending = !step;
+            const isActive = step?.status === 'running';
+
+            return (
+              <div key={stepKey} className="flex gap-4 relative z-10">
+                <div className="mt-0.5 flex-shrink-0">
+                  {isPending ? (
+                    <PendingIcon />
+                  ) : (
+                    <StepIcon status={step.status} />
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
+                <div className={`flex-1 ${isPending ? 'opacity-40' : ''}`}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className={`text-sm font-semibold ${isActive ? 'text-primary' : isPending ? 'text-on-surface' : 'text-on-surface'}`}>
+                      {label}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {step && <ModelBadge model={step.model} />}
+                      {step?.durationMs != null ? (
+                        <span className="text-xs text-outline">{step.durationMs}ms</span>
+                      ) : isActive ? (
+                        <span className="text-xs text-primary">Processing...</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {step?.summary && (
+                    <p className="text-xs text-on-surface-variant mt-1">{step.summary}</p>
+                  )}
+                  {step?.toolsCalled && step.toolsCalled.length > 0 && (
+                    <div className="flex gap-1 mt-1.5 flex-wrap">
+                      {step.toolsCalled.map((t) => (
+                        <span key={t} className="text-[10px] bg-[#dcfce7] text-[#166534] px-1.5 py-0.5 rounded font-mono">
+                          {t}()
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
 
-        {/* Outcome banner */}
-        {outcome === 'sent' && quoteTotal && (
-          <div className="mt-4 border border-emerald-700 bg-emerald-950/60 rounded-xl px-4 py-3">
-            <p className="text-emerald-400 font-semibold text-sm">Quote sent automatically</p>
-            <p className="text-emerald-300 text-2xl font-bold mt-0.5">{quoteTotal}</p>
-            <p className="text-emerald-600 text-xs mt-1">Email delivered to customer &lt; 60 seconds after inquiry</p>
-          </div>
-        )}
-        {outcome === 'escalated' && (
-          <div className="mt-4 border border-yellow-700 bg-yellow-950/60 rounded-xl px-4 py-3">
-            <p className="text-yellow-400 font-semibold text-sm">Escalated to human review</p>
-            <p className="text-yellow-600 text-xs mt-1">Check the Approval Queue →</p>
+          {/* MCP tool sub-steps */}
+          {toolSteps.map((step, i) => (
+            <div key={`tool-${i}`} className="flex gap-4 relative z-10 pl-8">
+              <div className="mt-0.5 flex-shrink-0">
+                <div className="w-5 h-5 rounded-full bg-[#dcfce7] border border-[#bbf7d0] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#16a34a]" style={{ fontSize: 11 }}>build</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-[#166534]">MCP Tool Call</span>
+                  <ModelBadge model="mcp" />
+                  {step.durationMs != null && (
+                    <span className="text-xs text-outline">{step.durationMs}ms</span>
+                  )}
+                </div>
+                {step.summary && <p className="text-xs text-on-surface-variant mt-0.5">{step.summary}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Confidence bar */}
+        {latestConfidence != null && (
+          <div className="mt-5 pt-4 border-t border-outline-variant">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-on-surface-variant">Confidence</span>
+              <span className="text-xs font-bold text-primary">{Math.round(latestConfidence * 100)}%</span>
+            </div>
+            <div className="w-full h-2 bg-surface-container-high rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700 bg-primary"
+                style={{ width: `${Math.round(latestConfidence * 100)}%` }}
+              />
+            </div>
           </div>
         )}
 
         <div ref={bottomRef} />
       </div>
 
-      {/* Confidence meter */}
-      {latestConfidence != null && (
-        <div className="px-5 pb-4 pt-2 border-t border-gray-800">
-          <ConfidenceMeter value={latestConfidence} />
+      {/* Outcome result box */}
+      {outcome === 'sent' && (
+        <div className="mx-6 mb-6 p-4 bg-[#f0fdf4] border border-[#dcfce7] rounded-xl">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-[#166534]">Quote sent automatically</span>
+            {quoteTotal && <span className="text-xl font-bold text-[#15803d]">{quoteTotal}</span>}
+          </div>
+          <p className="text-xs text-[#166534]/70 mt-1">Delivered in under 60 seconds · Full audit trail in Activity Log</p>
+        </div>
+      )}
+      {outcome === 'escalated' && (
+        <div className="mx-6 mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <span className="text-sm font-medium text-amber-800">Sent to Approval Queue</span>
+          <p className="text-xs text-amber-700/70 mt-1">Confidence below threshold — review and approve manually</p>
+        </div>
+      )}
+      {outcome === 'failed' && (
+        <div className="mx-6 mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+          <span className="text-sm font-medium text-red-800">Processing failed</span>
+          <p className="text-xs text-red-700/70 mt-1">Check Activity Log for error details</p>
         </div>
       )}
     </div>

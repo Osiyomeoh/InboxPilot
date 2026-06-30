@@ -155,4 +155,4 @@ export async function runAgentChain(
   return { inquiryId: input.inquiryId, escalated: false, confidence: decide.confidence, intake, decide, verify, draftQuote, qa, email, traces, toolResults };
 }
 
-export type { AgentInput, AgentOutput, AgentStepEvent, AgentOptions };
+export type { AgentInput, AgentOutput, AgentStepEvent, AgentOptions, DraftQuoteResult, LineItem };

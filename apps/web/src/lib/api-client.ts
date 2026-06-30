@@ -21,4 +21,15 @@ export const api = {
     const q = new URLSearchParams(params as Record<string, string>).toString();
     return apiFetch<{ logs: unknown[]; total: number }>(`/activity${q ? '?' + q : ''}`);
   },
+  getActivityStats: () =>
+    apiFetch<{
+      totalToday: number;
+      sentToday: number;
+      escalatedToday: number;
+      successRate: number | null;
+      avgResponseSec: number | null;
+    }>('/activity/stats'),
+  getSettings: () => apiFetch<Record<string, string>>('/settings'),
+  updateSettings: (body: Record<string, string | number>) =>
+    apiFetch<{ ok: boolean }>('/settings', { method: 'PATCH', body: JSON.stringify(body) }),
 };

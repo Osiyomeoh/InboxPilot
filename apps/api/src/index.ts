@@ -8,6 +8,7 @@ import { inquiryRoutes } from './routes/inquiries.js';
 import { quoteRoutes } from './routes/quotes.js';
 import { activityRoutes } from './routes/activity.js';
 import { demoRoutes } from './routes/demo.js';
+import { settingsRoutes } from './routes/settings.js';
 import { registerClient } from './ws/broadcaster.js';
 import { startInquiryWorker } from './workers/inquiry.worker.js';
 import { startFollowupWorker } from './workers/followup.worker.js';
@@ -25,7 +26,7 @@ await app.register(websocket);
 // WebSocket endpoint for live dashboard feed
 app.get('/ws', { websocket: true }, (socket) => {
   registerClient(socket);
-  socket.send(JSON.stringify({ type: 'CONNECTED', payload: { ts: Date.now() } }));
+  socket.socket.send(JSON.stringify({ type: 'CONNECTED', payload: { ts: Date.now() } }));
 });
 
 // REST routes
@@ -34,6 +35,7 @@ await app.register(inquiryRoutes);
 await app.register(quoteRoutes);
 await app.register(activityRoutes);
 await app.register(demoRoutes);
+await app.register(settingsRoutes);
 
 app.get('/health', async () => ({ ok: true, ts: Date.now() }));
 
