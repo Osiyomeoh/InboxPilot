@@ -85,6 +85,8 @@ export interface AgentStepEvent {
 
 export interface AgentOptions {
   onStep?: (event: AgentStepEvent) => void;
+  /** Override the confidence threshold for this run. Defaults to CONFIDENCE_THRESHOLD env var (0.8). */
+  confidenceThreshold?: number;
 }
 
 export interface AgentOutput {

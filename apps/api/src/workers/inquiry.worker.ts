@@ -6,6 +6,7 @@ import { broadcast } from '../ws/broadcaster.js';
 import { renderQuotePdf } from '../pdf/renderer.js';
 import { sendEmail } from '../email/sender.js';
 import { config } from '../config.js';
+import { getConfidenceThreshold } from '../routes/settings.js';
 import type { AgentStepEvent } from '@inbox-pilot/agent';
 
 export function startInquiryWorker() {
@@ -26,6 +27,7 @@ export function startInquiryWorker() {
       };
 
       try {
+        const confidenceThreshold = await getConfidenceThreshold();
         const output = await runAgentChain(
           {
             inquiryId,
@@ -34,7 +36,7 @@ export function startInquiryWorker() {
             subject: inquiry.subject,
             bodyText: inquiry.bodyText,
           },
-          { onStep },
+          { onStep, confidenceThreshold },
         );
 
         // Persist full step traces to DB for the reasoning trace viewer

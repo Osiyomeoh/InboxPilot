@@ -24,10 +24,9 @@ export async function runAgentChain(
   input: AgentInput,
   options: AgentOptions = {},
 ): Promise<AgentOutput> {
-  const { onStep } = options;
+  const { onStep, confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.8) } = options;
   const traces = [];
   const toolResults: Record<string, unknown> = {};
-  const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.8);
 
   // ── Step 1: Intake ─────────────────────────────────────────────────────────
   emit(onStep, { inquiryId: input.inquiryId, ...STEP_META[0], status: 'running' });
@@ -155,4 +154,5 @@ export async function runAgentChain(
   return { inquiryId: input.inquiryId, escalated: false, confidence: decide.confidence, intake, decide, verify, draftQuote, qa, email, traces, toolResults };
 }
 
-export type { AgentInput, AgentOutput, AgentStepEvent, AgentOptions, DraftQuoteResult, LineItem };
+export type { AgentInput, AgentOutput, AgentStepEvent, AgentOptions };
+export type { DraftQuoteResult, LineItem } from './types.js';

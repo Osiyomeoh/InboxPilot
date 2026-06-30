@@ -96,6 +96,12 @@ model ActivityLog {
   createdAt DateTime @default(now())
 }
 
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 enum InquiryStatus {
   PENDING
   PROCESSING
