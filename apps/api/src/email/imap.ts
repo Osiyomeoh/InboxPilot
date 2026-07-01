@@ -58,7 +58,7 @@ function checkInbox(imap: Imap) {
               if (await isDedup(email.messageId)) return;
 
               const inquiry = await prisma.inquiry.create({ data: email });
-              await inquiryQueue.add('process', { inquiryId: inquiry.id });
+              await inquiryQueue.add('process', { inquiryId: inquiry.id }, { jobId: inquiry.id, removeOnComplete: true, removeOnFail: true });
               broadcast({ type: 'EMAIL_RECEIVED', payload: { id: inquiry.id, fromEmail: email.fromEmail, subject: email.subject } });
               console.log('[imap] Queued inquiry', inquiry.id);
             } catch (e) {

@@ -13,7 +13,7 @@ export function startInquiryWorker() {
   const worker = new Worker(
     'inquiry',
     async (job) => {
-      const { inquiryId } = job.data as { inquiryId: string };
+      const { inquiryId, confidenceThreshold: jobThreshold } = job.data as { inquiryId: string; confidenceThreshold?: number };
       const inquiry = await prisma.inquiry.findUniqueOrThrow({ where: { id: inquiryId } });
 
       await prisma.inquiry.update({ where: { id: inquiryId }, data: { status: 'PROCESSING' } });
@@ -27,7 +27,7 @@ export function startInquiryWorker() {
       };
 
       try {
-        const confidenceThreshold = await getConfidenceThreshold();
+        const confidenceThreshold = jobThreshold ?? await getConfidenceThreshold();
         const output = await runAgentChain(
           {
             inquiryId,

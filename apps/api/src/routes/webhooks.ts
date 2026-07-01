@@ -31,7 +31,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     }
 
     const inquiry = await prisma.inquiry.create({ data: email });
-    await inquiryQueue.add('process', { inquiryId: inquiry.id });
+    await inquiryQueue.add('process', { inquiryId: inquiry.id }, { jobId: inquiry.id, removeOnComplete: true, removeOnFail: true });
     await prisma.activityLog.create({
       data: { inquiryId: inquiry.id, eventType: 'EMAIL_RECEIVED', payload: { fromEmail: email.fromEmail } },
     });

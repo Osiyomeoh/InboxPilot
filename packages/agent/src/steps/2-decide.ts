@@ -30,16 +30,17 @@ Rules:
 - Include check_calendar only if customer mentions specific dates
 - Set action to "escalate" ONLY if there are 3+ critical ambiguities that make quoting impossible
 - Do NOT include flag_for_human or create_quote in toolCalls — those are handled automatically
-- Set confidence based on how clear and complete the request is:
-  * 0.9+ : specific product SKUs, exact quantities, clear intent
-  * 0.7-0.89: known products but vague quantities or unclear scope
-  * 0.5-0.69: ambiguous products, no quantities, or very vague request
-  * below 0.5: completely unclear — consider escalate action
+- Set confidence based on PRODUCT and QUANTITY clarity only:
+  * 0.85-0.95: specific named products with exact quantities → can auto-quote
+  * 0.65-0.84: products identified but quantities vague ("maybe 5 could be 500") → needs review
+  * 0.4-0.64: no specific products or wildly undefined scope → escalate
 
-Ambiguities: ${JSON.stringify(intake.ambiguities ?? [])}
-Number of ambiguities: ${(intake.ambiguities ?? []).length}
-If there are 2+ ambiguities, your confidence MUST be below 0.75.
-If there are 4+ ambiguities, your confidence MUST be below 0.6.
+Critical ambiguities that LOWER confidence:
+${JSON.stringify((intake.ambiguities ?? []).filter((a: string) =>
+  /quantity|product|what|which|unclear|unknown|undefined/i.test(a)
+))}
+
+Minor ambiguities (delivery, payment terms, config) do NOT lower confidence — they are resolved post-quote.
 
 You MUST return valid JSON in exactly this format — no extra text, no markdown:
 {
@@ -49,7 +50,7 @@ You MUST return valid JSON in exactly this format — no extra text, no markdown
     {"tool": "get_pricing", "args": {"product": "PRODUCT_SKU", "qty": 1}}
   ],
   "reasoning": "Brief explanation of your confidence score and tool choices",
-  "confidence": 0.72
+  "confidence": 0.9
 }`;
 
   const { content, usage } = await chat('qwen-max', [{ role: 'user', content: prompt }]);

@@ -19,6 +19,7 @@ Our project deadline is in 3 weeks. Can you confirm pricing and delivery timelin
 Thanks,
 Alice Johnson
 Procurement Manager, Acme Corp`,
+    confidenceThreshold: 0.8,
   },
   {
     id: 'demo-hitl',
@@ -34,6 +35,8 @@ Could be 5 units could be 500 depending on pricing. Also need to understand your
 What can you do for us? We're a startup so budget is tight but we could scale quickly.
 
 Bob`,
+    // Force escalation — this scenario always demonstrates the human-review path
+    confidenceThreshold: 1.0,
   },
 ];
 
@@ -64,7 +67,11 @@ export async function demoRoutes(app: FastifyInstance) {
       data: { inquiryId: inquiry.id, eventType: 'EMAIL_RECEIVED', payload: { fromEmail: scenario.fromEmail, demo: true } },
     });
 
-    await inquiryQueue.add('process', { inquiryId: inquiry.id });
+    await inquiryQueue.add(
+      'process',
+      { inquiryId: inquiry.id, confidenceThreshold: scenario.confidenceThreshold },
+      { jobId: inquiry.id, removeOnComplete: true, removeOnFail: true },
+    );
 
     broadcast({
       type: 'EMAIL_RECEIVED',
