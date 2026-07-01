@@ -19,7 +19,12 @@ export function startInquiryWorker() {
       await prisma.inquiry.update({ where: { id: inquiryId }, data: { status: 'PROCESSING' } });
       broadcast({ type: 'INQUIRY_PROCESSING', payload: { id: inquiryId, fromEmail: inquiry.fromEmail, subject: inquiry.subject } });
 
-      const agentRun = await prisma.agentRun.create({ data: { inquiryId } });
+      // Upsert in case BullMQ retries after a crash (AgentRun has unique constraint on inquiryId)
+      const agentRun = await prisma.agentRun.upsert({
+        where: { inquiryId },
+        create: { inquiryId },
+        update: { status: 'RUNNING', completedAt: null, escalated: false, escalateReason: null },
+      });
 
       // Broadcast each step the moment it starts/completes — this is what drives the live UI
       const onStep = (event: AgentStepEvent) => {
