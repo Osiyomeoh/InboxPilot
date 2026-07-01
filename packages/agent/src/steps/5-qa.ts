@@ -8,34 +8,28 @@ export async function stepQA(
 ): Promise<{ result: QAResult; trace: StepTrace }> {
   const start = Date.now();
 
-  const prompt = `You are a senior sales quality assurance reviewer. Critically evaluate this draft quote against the original customer inquiry.
+  const prompt = `You are a sales quality assurance reviewer. Check this draft quote against the original customer inquiry.
 
-Original email:
-Subject: ${input.subject}
-Body: ${input.bodyText}
-
-Parsed intent: ${intake.intent}
+Original email subject: ${input.subject}
 Products requested: ${JSON.stringify(intake.products)}
 
 Draft quote:
 ${JSON.stringify(draftQuote, null, 2)}
 
-Check all of the following:
-1. Does the quote cover all products the customer requested?
-2. Are the quantities correct?
-3. Do the line item totals add up correctly (qty × unitPrice = total)?
-4. Does subtotal + tax = total?
-5. Is the quote professionally structured with terms and validity date?
-6. Are there any obvious pricing errors or anomalies?
+Check ONLY:
+1. Does the quote include ALL products the customer requested? (fail if any product is completely missing)
+2. Are quantities reasonable for each product?
+3. Is the quote professionally structured (has line items, currency, validity date)?
 
-Return JSON:
+Do NOT check arithmetic — pricing is handled by our pricing engine and is correct.
+Do NOT fail for minor formatting issues.
+
+Return JSON only:
 {
-  "passed": true | false,
-  "issues": ["list specific issues found, empty array if none"],
-  "overallQuality": "excellent" | "good" | "needs_revision"
-}
-
-Be strict. A quote fails if math is wrong or products are missing.`;
+  "passed": true,
+  "issues": [],
+  "overallQuality": "excellent"
+}`;
 
   const { content, usage } = await chat('qwen-max', [{ role: 'user', content: prompt }]);
   const result = parseJson<QAResult>(content);

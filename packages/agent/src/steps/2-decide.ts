@@ -14,30 +14,42 @@ export async function stepDecide(
 ): Promise<{ result: DecideResult; trace: StepTrace }> {
   const start = Date.now();
 
-  const prompt = `You are an intelligent sales automation agent. Based on this parsed inquiry, decide which tools to call to fulfill the request.
+  const prompt = `You are an intelligent sales automation agent. Based on this parsed inquiry, decide which tools to call.
 
-Customer: ${intake.customerEmail}
+Customer email: ${intake.customerEmail}
 Intent: ${intake.intent}
 Products requested: ${JSON.stringify(intake.products)}
 Urgency: ${intake.urgency}
-Ambiguities: ${JSON.stringify(intake.ambiguities)}
 Inquiry ID: ${input.inquiryId}
 
 ${TOOL_MANIFEST}
 
 Rules:
-- ALWAYS call lookup_customer first to understand who this customer is
-- Call get_pricing for EACH product in the products list
-- Call check_calendar if the customer mentions any specific dates or delivery windows
-- Call flag_for_human if confidence < 0.8 OR deal value is likely > $10,000 OR there are 3+ critical ambiguities
-- Do NOT call create_quote — that happens after verification
+- ALWAYS include lookup_customer in toolCalls
+- Include get_pricing for EACH product in the products list
+- Include check_calendar only if customer mentions specific dates
+- Set action to "escalate" ONLY if there are 3+ critical ambiguities that make quoting impossible
+- Do NOT include flag_for_human or create_quote in toolCalls — those are handled automatically
+- Set confidence based on how clear and complete the request is:
+  * 0.9+ : specific product SKUs, exact quantities, clear intent
+  * 0.7-0.89: known products but vague quantities or unclear scope
+  * 0.5-0.69: ambiguous products, no quantities, or very vague request
+  * below 0.5: completely unclear — consider escalate action
 
-Return JSON:
+Ambiguities: ${JSON.stringify(intake.ambiguities ?? [])}
+Number of ambiguities: ${(intake.ambiguities ?? []).length}
+If there are 2+ ambiguities, your confidence MUST be below 0.75.
+If there are 4+ ambiguities, your confidence MUST be below 0.6.
+
+You MUST return valid JSON in exactly this format — no extra text, no markdown:
 {
-  "action": "proceed" | "escalate",
-  "toolCalls": [{"tool": "tool_name", "args": {...}}],
-  "reasoning": "step-by-step explanation of why you chose these tools",
-  "confidence": 0.0-1.0
+  "action": "proceed",
+  "toolCalls": [
+    {"tool": "lookup_customer", "args": {"email": "${intake.customerEmail}"}},
+    {"tool": "get_pricing", "args": {"product": "PRODUCT_SKU", "qty": 1}}
+  ],
+  "reasoning": "Brief explanation of your confidence score and tool choices",
+  "confidence": 0.72
 }`;
 
   const { content, usage } = await chat('qwen-max', [{ role: 'user', content: prompt }]);

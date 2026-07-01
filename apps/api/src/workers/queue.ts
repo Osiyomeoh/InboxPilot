@@ -3,12 +3,14 @@ import { Redis } from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const url = new URL(REDIS_URL);
+const tls = url.protocol === 'rediss:' ? {} : undefined;
 
 // Shared ioredis instance for dedup/caching in other modules
 export const redisClient = new Redis({
   host: url.hostname,
   port: Number(url.port) || 6379,
   password: url.password || undefined,
+  tls,
   maxRetriesPerRequest: null,
 });
 
@@ -17,6 +19,7 @@ export const redisConnection = {
   host: url.hostname,
   port: Number(url.port) || 6379,
   password: url.password || undefined,
+  tls,
 };
 
 export const inquiryQueue = new Queue('inquiry', { connection: redisConnection });

@@ -89,6 +89,7 @@ export function startInquiryWorker() {
         }
 
         // Auto-send the quote
+        console.log(`[worker] output.email=${!!output.email} output.draftQuote=${!!output.draftQuote}`);
         if (output.email && output.draftQuote) {
           await sendEmail({
             to: inquiry.fromEmail,
@@ -113,12 +114,20 @@ export function startInquiryWorker() {
             },
           });
 
-          // Schedule follow-up
-          await followupQueue.add(
-            'followup',
-            { inquiryId, sequenceNum: 1 },
-            { delay: config.FOLLOWUP_DELAY_DAYS * 24 * 60 * 60 * 1000 },
-          );
+          // Schedule follow-up (non-fatal — Redis hiccups shouldn't un-send a quote)
+          try {
+            await followupQueue.add(
+              'followup',
+              { inquiryId, sequenceNum: 1 },
+              { delay: config.FOLLOWUP_DELAY_DAYS * 24 * 60 * 60 * 1000 },
+            );
+          } catch (fErr) {
+            console.warn('[worker] followup queue enqueue failed (non-fatal):', fErr);
+          }
+        } else {
+          console.warn(`[worker] inquiry ${inquiryId} — agent completed but no email/quote output. Marking FAILED.`);
+          await prisma.inquiry.update({ where: { id: inquiryId }, data: { status: 'FAILED' } });
+          await prisma.activityLog.create({ data: { inquiryId, eventType: 'AGENT_FAILED', payload: { error: 'Agent returned no email output after completing all steps' } } });
         }
       } catch (err) {
         await prisma.agentRun.update({ where: { id: agentRun.id }, data: { status: 'FAILED', completedAt: new Date() } });

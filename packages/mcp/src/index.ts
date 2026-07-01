@@ -33,12 +33,19 @@ app.post<{ Params: { toolName: string }; Body: Record<string, unknown> }>(
       let result: unknown;
 
       switch (toolName) {
-        case 'get_pricing':
-          result = getPricing(args.product as string, args.qty as number);
+        case 'get_pricing': {
+          // Qwen sometimes sends sku/productName/product_name instead of product
+          const product = (args.product ?? args.sku ?? args.productName ?? args.product_name ?? 'UNKNOWN') as string;
+          const qty = Number(args.qty ?? args.quantity ?? args.qty_requested ?? 1);
+          result = getPricing(product, qty);
           break;
-        case 'lookup_customer':
-          result = lookupCustomer(args.email as string);
+        }
+        case 'lookup_customer': {
+          // Qwen sometimes sends customerEmail instead of email — accept either
+          const email = (args.email ?? args.customerEmail ?? args.customer_email ?? '') as string;
+          result = lookupCustomer(email);
           break;
+        }
         case 'create_quote':
           result = await createQuote(
             args.inquiryId as string,

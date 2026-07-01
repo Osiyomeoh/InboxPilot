@@ -53,7 +53,18 @@ export async function chat(
 }
 
 export function parseJson<T>(content: string): T {
-  const match = content.match(/```json\s*([\s\S]*?)```/) ?? content.match(/(\{[\s\S]*\})/);
-  const raw = match ? match[1] : content;
-  return JSON.parse(raw.trim()) as T;
+  // Strip markdown fences
+  let raw = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+  // Extract the outermost JSON object
+  const objMatch = raw.match(/\{[\s\S]*\}/);
+  if (objMatch) raw = objMatch[0];
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    // Best-effort cleanup: trailing commas, single quotes
+    raw = raw.replace(/,(\s*[}\]])/g, '$1').replace(/'/g, '"');
+    return JSON.parse(raw) as T;
+  }
 }

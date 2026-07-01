@@ -60,7 +60,32 @@ export async function runAgentChain(
       status: 'running',
       summary: `Calling MCP tool: ${toolCall.tool}`,
     });
-    toolResults[toolCall.tool] = await callMcpTool(toolCall.tool, toolCall.args);
+    // Normalise args: Qwen sometimes sends a bare string instead of an object.
+    // Expand it into the canonical field name for that tool.
+    let args = toolCall.args as Record<string, unknown>;
+    if (typeof args === 'string' || typeof args === 'number') {
+      const scalar = args;
+      if (toolCall.tool === 'lookup_customer') args = { email: scalar };
+      else if (toolCall.tool === 'get_pricing') args = { product: scalar, qty: (toolCall as Record<string, unknown>).qty ?? 1 };
+      else args = { value: scalar };
+    }
+    // Hoist top-level qty/product siblings that Qwen sometimes places next to args
+    const tc = toolCall as Record<string, unknown>;
+    if (toolCall.tool === 'get_pricing') {
+      if (!args.product && typeof args === 'object') args = { ...args, product: tc.args ?? tc.product ?? tc.sku ?? 'UNKNOWN' };
+      if (!args.qty && tc.qty) args = { ...args, qty: tc.qty };
+    }
+    if (toolCall.tool === 'lookup_customer' && !args.email) {
+      args = { ...args, email: tc.args ?? tc.email ?? tc.customerEmail ?? '' };
+    }
+    const toolResult = await callMcpTool(toolCall.tool, args);
+    // Accumulate repeated tool calls (e.g. get_pricing called once per product) into an array
+    if (toolCall.tool in toolResults) {
+      const existing = toolResults[toolCall.tool];
+      toolResults[toolCall.tool] = Array.isArray(existing) ? [...existing, toolResult] : [existing, toolResult];
+    } else {
+      toolResults[toolCall.tool] = toolResult;
+    }
     emit(onStep, {
       inquiryId: input.inquiryId,
       stepNumber: 2,
@@ -151,6 +176,7 @@ export async function runAgentChain(
     summary: `Cover email ready — "${email.subject}"`,
   });
 
+  console.log(`[agent] chain complete — email.subject="${email?.subject}" draftQuote.total=${draftQuote?.total}`);
   return { inquiryId: input.inquiryId, escalated: false, confidence: decide.confidence, intake, decide, verify, draftQuote, qa, email, traces, toolResults };
 }
 

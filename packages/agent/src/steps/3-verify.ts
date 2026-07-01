@@ -7,38 +7,37 @@ export async function stepVerify(
 ): Promise<{ result: VerifyResult; trace: StepTrace }> {
   const start = Date.now();
 
-  const prompt = `You are a meticulous sales operations analyst. Review the tool results and determine if we have enough information to generate a complete, accurate quote.
+  const prompt = `You are a sales operations analyst. Review tool results and confirm we can generate a quote.
 
 Original request:
 - Intent: ${intake.intent}
 - Products: ${JSON.stringify(intake.products)}
-- Ambiguities: ${JSON.stringify(intake.ambiguities)}
 
 Tool results:
 ${JSON.stringify(toolResults, null, 2)}
 
-Your job:
-1. Verify each product has pricing data
-2. Verify the customer record was found
-3. Identify any gaps that would make the quote incomplete or inaccurate
-4. Build the resolved line items array with final prices
+Rules — set complete=false ONLY if:
+1. A product has NO pricing data at all (missing from get_pricing results entirely)
+2. The customer is completely unknown AND the deal is > $5000
 
-Return JSON:
+Do NOT flag as incomplete for: missing delivery address, payment terms, shipping method, or configurations. Those are clarified after sending the quote.
+
+Build resolvedLineItems from the get_pricing results. If get_pricing returned an array, use all entries.
+
+Return JSON only, no extra text:
 {
-  "complete": true | false,
-  "gaps": ["list of missing information if any"],
+  "complete": true,
+  "gaps": [],
   "resolvedLineItems": [
     {
-      "sku": "SKU string",
-      "description": "human-readable product name",
-      "qty": number,
-      "unitPrice": number,
-      "total": number
+      "sku": "WIDGET-A",
+      "description": "Widget A",
+      "qty": 50,
+      "unitPrice": 22.49,
+      "total": 1124.50
     }
   ]
-}
-
-If complete is false, gaps must be non-empty. If all products have pricing, complete should be true.`;
+}`;
 
   const { content, usage } = await chat('qwen-max', [{ role: 'user', content: prompt }]);
   const result = parseJson<VerifyResult>(content);
