@@ -37,7 +37,7 @@ Return JSON:
   "tone": "professional-warm" | "formal" | "casual"
 }`;
 
-  const { content, usage } = await chat('qwen-plus', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.7-plus', [{ role: 'user', content: prompt }]);
   const result = parseJson<WriteEmailResult>(content);
 
   return {
@@ -45,7 +45,7 @@ Return JSON:
     trace: {
       stepNumber: 6,
       stepName: 'write-email',
-      model: 'qwen-plus',
+      model: 'qwen3.7-plus',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { firstName, quoteTotal: quote.total },

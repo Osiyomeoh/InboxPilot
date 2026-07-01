@@ -39,7 +39,7 @@ Return JSON only, no extra text:
   ]
 }`;
 
-  const { content, usage } = await chat('qwen-max', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.7-max', [{ role: 'user', content: prompt }]);
   const result = parseJson<VerifyResult>(content);
 
   return {
@@ -47,7 +47,7 @@ Return JSON only, no extra text:
     trace: {
       stepNumber: 3,
       stepName: 'verify',
-      model: 'qwen-max',
+      model: 'qwen3.7-max',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { intake, toolResults },

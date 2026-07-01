@@ -31,7 +31,7 @@ Return JSON only:
   "overallQuality": "excellent"
 }`;
 
-  const { content, usage } = await chat('qwen-max', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.7-max', [{ role: 'user', content: prompt }]);
   const result = parseJson<QAResult>(content);
 
   return {
@@ -39,7 +39,7 @@ Return JSON only:
     trace: {
       stepNumber: 5,
       stepName: 'qa',
-      model: 'qwen-max',
+      model: 'qwen3.7-max',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { subject: input.subject, draftQuote },

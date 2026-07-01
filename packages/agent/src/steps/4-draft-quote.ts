@@ -30,7 +30,7 @@ Return JSON:
 
 Tax rate: 8%. Round all currency values to 2 decimal places.`;
 
-  const { content, usage } = await chat('qwen-plus', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.7-plus', [{ role: 'user', content: prompt }]);
   const result = parseJson<DraftQuoteResult>(content);
 
   // Ensure validUntil is set
@@ -43,7 +43,7 @@ Tax rate: 8%. Round all currency values to 2 decimal places.`;
     trace: {
       stepNumber: 4,
       stepName: 'draft-quote',
-      model: 'qwen-plus',
+      model: 'qwen3.7-plus',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { lineItems: verify.resolvedLineItems },
