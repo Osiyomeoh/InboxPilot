@@ -4,6 +4,7 @@ import { prisma } from '@inbox-pilot/db';
 import { redisConnection, followupQueue } from './queue.js';
 import { broadcast } from '../ws/broadcaster.js';
 import { renderQuotePdf } from '../pdf/renderer.js';
+import { uploadQuotePdf } from '../storage/oss.js';
 import { sendEmail } from '../email/sender.js';
 import { config } from '../config.js';
 import { getConfidenceThreshold } from '../routes/settings.js';
@@ -85,8 +86,16 @@ export function startInquiryWorker() {
         if (quote && output.draftQuote) {
           try {
             const pdfPath = await renderQuotePdf(quote, inquiry, output.draftQuote);
-            await prisma.quote.update({ where: { id: quote.id }, data: { pdfPath, coverEmail: output.email?.body } });
-            broadcast({ type: 'QUOTE_PDF_READY', payload: { inquiryId, quoteId: quote.id } });
+            // Upload to Alibaba Cloud OSS (non-fatal if not configured)
+            const ossResult = await uploadQuotePdf(pdfPath, inquiryId, quote.id);
+            await prisma.quote.update({
+              where: { id: quote.id },
+              data: {
+                pdfPath: ossResult?.url ?? pdfPath,
+                coverEmail: output.email?.body,
+              },
+            });
+            broadcast({ type: 'QUOTE_PDF_READY', payload: { inquiryId, quoteId: quote.id, pdfUrl: ossResult?.url } });
           } catch (pdfErr) {
             console.error('[pdf] render failed:', pdfErr);
             // Non-fatal — proceed without PDF

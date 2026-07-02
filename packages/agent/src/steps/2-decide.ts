@@ -53,7 +53,7 @@ You MUST return valid JSON in exactly this format — no extra text, no markdown
   "confidence": 0.9
 }`;
 
-  const { content, usage } = await chat('qwen3.7-max', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.7-plus', [{ role: 'user', content: prompt }]);
   const result = parseJson<DecideResult>(content);
 
   return {
@@ -61,7 +61,7 @@ You MUST return valid JSON in exactly this format — no extra text, no markdown
     trace: {
       stepNumber: 2,
       stepName: 'decide',
-      model: 'qwen3.7-max',
+      model: 'qwen3.7-plus',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { intake },

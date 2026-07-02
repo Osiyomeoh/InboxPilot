@@ -54,6 +54,10 @@ services:
       - FOLLOWUP_MAX_COUNT=${FOLLOWUP_MAX_COUNT:-2}
       - JWT_SECRET=${JWT_SECRET}
       - PDF_OUTPUT_DIR=/tmp/inbox-pilot/pdfs
+      - ALIBABA_CLOUD_ACCESS_KEY_ID=${ALIBABA_CLOUD_ACCESS_KEY_ID}
+      - ALIBABA_CLOUD_ACCESS_KEY_SECRET=${ALIBABA_CLOUD_ACCESS_KEY_SECRET}
+      - OSS_BUCKET=${OSS_BUCKET:-inboxpilot-quotes}
+      - OSS_REGION=${OSS_REGION:-oss-ap-southeast-1}
     depends_on:
       mcp:
         condition: service_healthy

@@ -29,7 +29,7 @@ Rules:
 - Urgency is "high" if they mention deadline, ASAP, urgent, rush, or similar
 - List any ambiguities that would affect pricing or feasibility`;
 
-  const { content, usage } = await chat('qwen3.7-max', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.7-plus', [{ role: 'user', content: prompt }]);
 
   const result = parseJson<IntakeResult>(content);
 
@@ -38,7 +38,7 @@ Rules:
     trace: {
       stepNumber: 1,
       stepName: 'intake',
-      model: 'qwen3.7-max',
+      model: 'qwen3.7-plus',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { fromEmail: input.fromEmail, subject: input.subject },
