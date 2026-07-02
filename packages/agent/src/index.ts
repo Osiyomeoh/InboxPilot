@@ -8,12 +8,12 @@ import { callMcpTool } from './tools/mcp-caller.js';
 import type { AgentInput, AgentOptions, AgentOutput, AgentStepEvent } from './types.js';
 
 const STEP_META = [
-  { stepNumber: 1, stepName: 'intake',       model: 'qwen-max',   summary: 'Parsing email — extracting intent, products, and urgency' },
-  { stepNumber: 2, stepName: 'decide',        model: 'qwen-max',   summary: 'Planning tool calls — pricing lookup, CRM check' },
-  { stepNumber: 3, stepName: 'verify',        model: 'qwen-turbo', summary: 'Verifying data completeness before quoting' },
-  { stepNumber: 4, stepName: 'draft-quote',   model: 'qwen-plus',  summary: 'Generating structured quote with line items' },
-  { stepNumber: 5, stepName: 'qa',            model: 'qwen-turbo', summary: 'Self-reviewing quote for accuracy and completeness' },
-  { stepNumber: 6, stepName: 'write-email',   model: 'qwen-plus',  summary: 'Writing professional cover email' },
+  { stepNumber: 1, stepName: 'intake',       model: 'qwen3.7-plus',  summary: 'Parsing email — extracting intent, products, and urgency' },
+  { stepNumber: 2, stepName: 'decide',        model: 'qwen3.7-max',   summary: 'Planning tool calls — pricing lookup, CRM check' },
+  { stepNumber: 3, stepName: 'verify',        model: 'qwen3.6-flash', summary: 'Verifying data completeness before quoting' },
+  { stepNumber: 4, stepName: 'draft-quote',   model: 'qwen3.7-plus',  summary: 'Generating structured quote with line items' },
+  { stepNumber: 5, stepName: 'qa',            model: 'qwen3.6-flash', summary: 'Self-reviewing quote for accuracy and completeness' },
+  { stepNumber: 6, stepName: 'write-email',   model: 'qwen3.7-plus',  summary: 'Writing professional cover email' },
 ];
 
 function emit(onStep: AgentOptions['onStep'], event: AgentStepEvent) {
@@ -105,7 +105,7 @@ export async function runAgentChain(
     await callMcpTool('flag_for_human', { inquiryId: input.inquiryId, reason, confidence: decide.confidence });
     emit(onStep, {
       inquiryId: input.inquiryId, stepNumber: 2, stepName: 'decide',
-      model: 'qwen-max', status: 'escalated', summary: reason,
+      model: 'qwen3.7-max', status: 'escalated', summary: reason,
     });
 
     return { inquiryId: input.inquiryId, escalated: true, escalateReason: reason, confidence: decide.confidence, intake, decide, traces, toolResults };

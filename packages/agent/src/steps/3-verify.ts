@@ -39,7 +39,7 @@ Return JSON only, no extra text:
   ]
 }`;
 
-  const { content, usage } = await chat('qwen-turbo', [{ role: 'user', content: prompt }]);
+  const { content, usage } = await chat('qwen3.6-flash', [{ role: 'user', content: prompt }]);
   const result = parseJson<VerifyResult>(content);
 
   return {
@@ -47,7 +47,7 @@ Return JSON only, no extra text:
     trace: {
       stepNumber: 3,
       stepName: 'verify',
-      model: 'qwen-turbo',
+      model: 'qwen3.6-flash',
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       inputJson: { intake, toolResults },

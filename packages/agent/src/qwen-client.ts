@@ -8,7 +8,7 @@ export const qwenMax = new OpenAI({
 
 export const qwenPlus = qwenMax; // Same client, different model string
 
-export type QwenModel = 'qwen-max' | 'qwen-plus' | 'qwen-turbo';
+export type QwenModel = 'qwen3.7-max' | 'qwen3.7-plus' | 'qwen3.6-flash';
 
 export async function chat(
   model: QwenModel,
